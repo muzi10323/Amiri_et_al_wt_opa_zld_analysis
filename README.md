@@ -46,7 +46,7 @@ Process the raw reads using the pipeline outlined in the methods section of the 
 
 Import the processed raw read files using the Import_Clogmia_Paired_End_... R scripts located in the Rmd/ folder. Ensure you map the files according to the metadata in all-coldata.xlsx.
 
-Store the newly imported ATAC-seq and RNA-seq data in a directory named ./GRanges.
+Store the newly imported ATAC-seq and RNA-seq data in a directory named ./GRanges to replace the empty sample files.
 
 Option B: From Pre-computed Counts
 Alternatively, you can skip the raw read importation by using the count.txt files provided in the WT_timecourse/, opaKD/, and zldKD/ folders for each respective experiment.
