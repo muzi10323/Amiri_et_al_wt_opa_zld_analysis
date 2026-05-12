@@ -1,0 +1,1103 @@
+---
+title: "250401_New_Wiggles"
+author: "ezra amiri"
+date: "4/7/2025"
+output: html_document
+---
+# Clean Env & Load packages
+```{r}
+rm(list = ls()); gc()
+```
+
+```{r}
+suppressPackageStartupMessages({
+library(BSgenome.Calbipunctata.Cantata.uni4000)
+library(SummarizedExperiment)
+library(DESeq2)
+library(DEGreport)
+library(GenomicRanges)
+library(GenomicAlignments)
+library(GenomicFeatures)
+library(Rsamtools)
+library(tidyverse)
+library(stringr)
+library(ggplot2)
+library(ggthemes)
+library(ggpubr)
+library(dplyr)
+library(writexl)
+library(readxl)
+library(seqLogo)
+library(ballgown)
+library(Glimma)
+library(Gviz)
+library(zoo)
+library(rtracklayer)
+#library(topGO)
+#library("apeglm")
+#library(pheatmap)
+#library(stats)
+#library(beeswarm)
+})
+```
+
+
+# Load data
+
+# opa
+
+## NC12 RNA-seq
+
+```{r}
+load("../GRanges/opakd-nc12-rnaseq.GRanges.R")
+
+head(opakd.nc12.rnaseq)
+```
+
+## NC12 ATAC-seq
+```{r}
+load("../GRanges/opakd-nc12-openreads.GRanges.R")
+
+head(opakd.nc12.openreads)
+```
+
+### NC12 updated coldata w/ genotypes
+```{r}
+nc12.opakd.coldata.atac <- as.data.frame(read_xlsx("../Processed_Data/250401/Results/opa/nc12-opa-coldata-updated.xlsx",sheet = 1))
+
+nc12.opakd.coldata.atac %>% head()
+```
+
+```{r}
+nc12.opakd.coldata.rna <- read_xlsx("../Processed_Data/250401/Results/opa/nc12-opa-coldata-updated.xlsx",sheet = 2)
+
+nc12.opakd.coldata.rna %>% head()
+
+```
+
+## NC13 RNA-seq
+```{r}
+load("../GRanges/opakd-nc13-rnaseq.GRanges.R")
+
+head(opakd.nc13.rnaseq)
+```
+
+## NC13 ATAC-seq
+```{r}
+load("../GRanges/opakd-nc13-openreads.GRanges.R")
+
+head(opakd.nc13.openreads)
+```
+
+### NC13 updated coldatas w/ genotypes
+```{r}
+nc13.opakd.coldata.atac <- read_xlsx("../Processed_Data/250401/Results/opa/nc13-opa-coldata-updated.xlsx",sheet = 1)
+
+nc13.opakd.coldata.atac %>% head()
+```
+
+```{r}
+nc13.opakd.coldata.rna <- read_xlsx("../Processed_Data/250401/Results/opa/nc13-opa-coldata-updated.xlsx",sheet = 2)
+
+nc13.opakd.coldata.rna %>% head()
+
+```
+
+# zld
+
+## zld RNA-seq Data
+```{r}
+load("../GRanges/zldkd-rnaseq.GRanges.R")
+
+head(zldkd.rnaseq)
+```
+
+## zld ATAC-seq Data
+```{r}
+load("../GRanges/zldkd-openreads.GRanges.R")
+
+head(zldkd.openreads)
+```
+
+### Updated coldatas w/ genotypes
+```{r}
+zld.coldata.atac <- read_xlsx("../Processed_Data/250401/Results/zld/zld-coldata-updated.xlsx", sheet = 1)
+
+zld.coldata.atac %>% head()
+```
+
+```{r}
+zld.coldata.rna <- read_xlsx("../Processed_Data/250401/Results/zld/zld-coldata-updated.xlsx", sheet = 2)
+
+zld.coldata.rna %>% head()
+```
+
+
+# TC ATAC
+
+Open reads (<= 120 bp) for each sample individually
+```{r}
+load("../GRanges/wt-tc-openreads.GRanges.R")
+
+#names(wt.tc.openreads)
+
+#max(width(wt.tc.openreads))
+```
+
+# TC RNA 
+Sample order: 1-4 NC2/3/maternal, 5-8 NC11, 9-12 NC12, 13-16 NC13, 17-20 NC14, 21-24 LNC14
+```{r}
+load("../GRanges/wt-tc-rnaseq.GRanges.R")
+
+head(wt.tc.rnaseq)
+```
+
+
+# Check that the seqlevels, seqinfo etc match for all GRanges 
+```{r}
+seqlevels(opakd.nc12.rnaseq) == seqlevels(opakd.nc12.openreads) 
+
+seqlevels(opakd.nc13.rnaseq) == seqlevels(opakd.nc13.openreads) 
+
+seqlevels(zldkd.rnaseq) == seqlevels(zldkd.openreads) 
+
+seqlevels(wt.tc.rnaseq) == seqlevels(wt.tc.openreads) 
+
+all(seqlevels(opakd.nc12.rnaseq) == seqlevels(opakd.nc13.rnaseq) & seqlevels(opakd.nc12.rnaseq) == seqlevels(zldkd.rnaseq) & seqlevels(opakd.nc12.rnaseq) == seqlevels(wt.tc.rnaseq))
+
+all(seqlevels(opakd.nc12.openreads) == seqlevels(opakd.nc13.openreads) & seqlevels(opakd.nc12.openreads) == seqlevels(zldkd.openreads) & seqlevels(opakd.nc12.openreads) == seqlevels(wt.tc.openreads))
+
+seqlevels(opakd.nc12.openreads)
+
+```
+```{r}
+
+seqinfo(opakd.nc12.openreads)
+seqinfo(opakd.nc12.rnaseq) 
+seqinfo(opakd.nc13.openreads)
+seqinfo(opakd.nc13.rnaseq) 
+seqinfo(zldkd.rnaseq)
+seqinfo(zldkd.openreads)
+seqinfo(wt.tc.rnaseq) 
+seqinfo(wt.tc.openreads)
+
+```
+
+Two GRanges do not have the genome column set to Clogmia ca6. Update below
+```{r}
+genome(zldkd.rnaseq) <- "ca6"
+genome(wt.tc.openreads) <- "ca6"
+```
+
+# Create a tiled version of the genome
+
+This is used to bin reads into, using the binnedAverage function.
+```{r}
+ca.10bp <- tileGenome(seqlengths(BSgenome.Calbipunctata.Cantata.uni4000), tilewidth = 10, cut.last.tile.in.chrom = TRUE)
+```
+
+## update seqlevels and seqinfo and seqlevelsinuse for tiled genome ca.10bp
+If seqlevels do not match binnedAverage will not work.
+```{r}
+good.uns <- seqlevels(wt.tc.openreads)
+good.uns
+```
+
+```{r}
+ca.10bp <- ca.10bp[seqnames(ca.10bp) %in% good.uns]
+seqlevels(ca.10bp) <- seqlevels(wt.tc.openreads)
+seqinfo(ca.10bp) <- seqinfo(wt.tc.openreads)
+seqlevels(ca.10bp) <- seqlevelsInUse(ca.10bp)
+```
+
+# Make bigWig/Wiggles
+
+## opa NC12 RNA-seq Inv Samples
+
+Binned Average
+```{r}
+opakd.nc12.rna.ba <- lapply(opakd.nc12.rnaseq, function(x){
+  a = binnedAverage(bins = ca.10bp, numvar = coverage(x), varname = 'score')
+  })
+```
+
+CPM normalized score
+
+Get length(number of reads) for each sample 
+```{r}
+lens.opakd.nc12.rnaseq <- lengths(opakd.nc12.rnaseq)
+#lens.opakd.nc12.rnaseq
+```
+
+Divide the score by the number of reads then * 1M
+```{r}
+for(i in 1 : length(opakd.nc12.rna.ba)){score(opakd.nc12.rna.ba[[i]]) = signif(score(opakd.nc12.rna.ba[[i]])/lens.opakd.nc12.rnaseq[i]*1e+6, 4)}
+```
+
+Export path
+
+Make a vector of file paths for each sample 
+```{r}
+file.names <- gsub(pattern = "\\.", replacement = "-", names(opakd.nc12.rna.ba))
+                   
+export.path <- paste0("../Processed_Data/Wiggles/opa/RNA/NC12/",file.names,".bw")
+
+head(export.path)
+#export.path
+```
+
+
+```{r}
+export(opakd.nc12.rna.ba[[3]], con = export.path[3], format = 'bigWig')
+```
+
+```{r}
+for(i in 1:8){export(opakd.nc12.rna.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+```{r}
+for(i in 9:15){export(opakd.nc12.rna.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+## opa NC12 RNA-seq merged by genotype
+
+```{r}
+nc12.opa.samples.rna.names <- nc12.opakd.coldata.rna %>% filter(genotype == "opa") %>% select(row.name)
+#nc12.opa.samples.rna.names
+nc12.opa.rna.merged <- sort(unlist(opakd.nc12.rnaseq[names(opakd.nc12.rnaseq) %in% nc12.opa.samples.rna.names$row.name]))
+
+nc12.ac.samples.rna.names <- nc12.opakd.coldata.rna %>% filter(genotype == "ac") %>% select(row.name)
+#nc12.ac.samples.rna.names
+nc12.ac.rna.merged <- sort(unlist(opakd.nc12.rnaseq[names(opakd.nc12.rnaseq) %in% nc12.ac.samples.rna.names$row.name]))
+
+nc12.dsred.samples.rna.names <- nc12.opakd.coldata.rna %>% filter(genotype == "dsred") %>% select(row.name)
+#nc12.dsred.samples.rna.names
+nc12.dsred.rna.merged <- sort(unlist(opakd.nc12.rnaseq[names(opakd.nc12.rnaseq) %in% nc12.dsred.samples.rna.names$row.name]))
+
+nc12.wt.samples.rna.names <- nc12.opakd.coldata.rna %>% filter(genotype == "wt") %>% select(row.name)
+#nc12.wt.samples.rna.names
+nc12.wt.rna.merged <- sort(unlist(opakd.nc12.rnaseq[names(opakd.nc12.rnaseq) %in% nc12.wt.samples.rna.names$row.name]))
+
+nc12.noKD.samples.rna.names <- nc12.opakd.coldata.rna %>% filter(genotype == "noKD") %>% select(row.name)
+#nc12.noKD.samples.rna.names
+nc12.noKD.rna.merged <- sort(unlist(opakd.nc12.rnaseq[names(opakd.nc12.rnaseq) %in% nc12.noKD.samples.rna.names$row.name]))
+
+nc12.intKD.samples.rna.names <- nc12.opakd.coldata.rna %>% filter(genotype == "intKD") %>% select(row.name)
+#nc12.intKD.samples.rna.names
+nc12.intKD.rna.merged <- sort(unlist(opakd.nc12.rnaseq[names(opakd.nc12.rnaseq) %in% nc12.intKD.samples.rna.names$row.name]))
+
+```
+
+Binned Average
+```{r}
+nc12.opa.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.opa.rna.merged), varname = 'score')
+
+nc12.ac.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.ac.rna.merged), varname = 'score')
+
+nc12.dsred.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.dsred.rna.merged), varname = 'score')
+
+nc12.wt.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.wt.rna.merged), varname = 'score')
+
+nc12.noKD.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.noKD.rna.merged), varname = 'score')
+
+nc12.intKD.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.intKD.rna.merged), varname = 'score')
+
+```
+
+CPM Normalize 
+```{r}
+score(nc12.opa.rna.ba) <- signif(score(nc12.opa.rna.ba)/length(nc12.opa.rna.merged)*1e+6, 4)
+
+score(nc12.ac.rna.ba) <- signif(score(nc12.ac.rna.ba)/length(nc12.ac.rna.merged)*1e+6, 4)
+
+score(nc12.dsred.rna.ba) <- signif(score(nc12.dsred.rna.ba)/length(nc12.dsred.rna.merged)*1e+6, 4)
+
+score(nc12.wt.rna.ba) <- signif(score(nc12.wt.rna.ba)/length(nc12.wt.rna.merged)*1e+6, 4)
+
+score(nc12.noKD.rna.ba) <- signif(score(nc12.noKD.rna.ba)/length(nc12.noKD.rna.merged)*1e+6, 4)
+
+score(nc12.intKD.rna.ba) <- signif(score(nc12.intKD.rna.ba)/length(nc12.intKD.rna.merged)*1e+6, 4)
+
+```
+
+Export
+```{r}
+export(object = nc12.opa.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC12/opa-nc12-rna-merged.bw", format = "bigWig")
+
+export(object = nc12.ac.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC12/ac-nc12-rna-merged.bw", format = "bigWig")
+
+export(object = nc12.dsred.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC12/dsred-nc12-rna-merged.bw", format = "bigWig")
+
+export(object = nc12.wt.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC12/wt-nc12-rna-merged.bw", format = "bigWig")
+
+export(object = nc12.noKD.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC12/noKD-nc12-rna-merged.bw", format = "bigWig")
+
+export(object = nc12.intKD.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC12/intKD-nc12-rna-merged.bw", format = "bigWig")
+```
+
+## opa NC12 ATAC-seq Inv samples
+
+Binned Average
+```{r}
+opakd.nc12.atac.ba <- lapply(opakd.nc12.openreads, function(x){
+  a = binnedAverage(bins = ca.10bp, numvar = coverage(x), varname = 'score')
+  })
+```
+
+CPM normalized score
+
+Get length (number of reads) for each sample 
+```{r}
+lens.opakd.nc12.atac <- lengths(opakd.nc12.openreads)
+#lens.opakd.nc12.atac
+```
+
+Divide the score by the number of reads then * 1M
+```{r}
+for(i in 1 : length(opakd.nc12.atac.ba)){score(opakd.nc12.atac.ba[[i]]) = signif(score(opakd.nc12.atac.ba[[i]])/lens.opakd.nc12.atac[i]*1e+6, 4)}
+```
+
+Export path
+
+Make a vector of file paths for each sample 
+```{r}
+file.names <- gsub(pattern = "\\.", replacement = "-", names(opakd.nc12.atac.ba))
+                   
+export.path <- paste0("../Processed_Data/Wiggles/opa/ATAC/NC12/",file.names,".bw")
+
+head(export.path)
+#export.path
+```
+
+```{r}
+for(i in 1:8){export(opakd.nc12.atac.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+```{r}
+for(i in 9:15){export(opakd.nc12.atac.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+## opa NC12 ATAC-seq merged by genotype
+
+```{r}
+nc12.opa.samples.atac.names <- nc12.opakd.coldata.atac %>% filter(genotype == "opa") %>% select(row.name)
+#nc12.opa.samples.atac.names
+nc12.opa.atac.merged <- sort(unlist(opakd.nc12.openreads[names(opakd.nc12.openreads) %in% nc12.opa.samples.atac.names$row.name]))
+
+nc12.ac.samples.atac.names <- nc12.opakd.coldata.atac %>% filter(genotype == "ac") %>% select(row.name)
+#nc12.ac.samples.atac.names
+nc12.ac.atac.merged <- sort(unlist(opakd.nc12.openreads[names(opakd.nc12.openreads) %in% nc12.ac.samples.atac.names$row.name]))
+
+nc12.dsred.samples.atac.names <- nc12.opakd.coldata.atac %>% filter(genotype == "dsred") %>% select(row.name)
+#nc12.dsred.samples.atac.names
+nc12.dsred.atac.merged <- sort(unlist(opakd.nc12.openreads[names(opakd.nc12.openreads) %in% nc12.dsred.samples.atac.names$row.name]))
+
+nc12.wt.samples.atac.names <- nc12.opakd.coldata.atac %>% filter(genotype == "wt") %>% select(row.name)
+#nc12.wt.samples.atac.names
+nc12.wt.atac.merged <- sort(unlist(opakd.nc12.openreads[names(opakd.nc12.openreads) %in% nc12.wt.samples.atac.names$row.name]))
+
+nc12.noKD.samples.atac.names <- nc12.opakd.coldata.atac %>% filter(genotype == "noKD") %>% select(row.name)
+#nc12.noKD.samples.atac.names
+nc12.noKD.atac.merged <- sort(unlist(opakd.nc12.openreads[names(opakd.nc12.openreads) %in% nc12.noKD.samples.atac.names$row.name]))
+
+nc12.intKD.samples.atac.names <- nc12.opakd.coldata.atac %>% filter(genotype == "intKD") %>% select(row.name)
+#nc12.intKD.samples.atac.names
+nc12.intKD.atac.merged <- sort(unlist(opakd.nc12.openreads[names(opakd.nc12.openreads) %in% nc12.intKD.samples.atac.names$row.name]))
+
+```
+
+Binned Average
+```{r}
+nc12.opa.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.opa.atac.merged), varname = 'score')
+
+nc12.ac.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.ac.atac.merged), varname = 'score')
+
+nc12.dsred.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.dsred.atac.merged), varname = 'score')
+
+nc12.wt.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.wt.atac.merged), varname = 'score')
+
+nc12.noKD.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.noKD.atac.merged), varname = 'score')
+
+nc12.intKD.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.intKD.atac.merged), varname = 'score')
+
+```
+
+CPM Normalize 
+```{r}
+score(nc12.opa.atac.ba) <- signif(score(nc12.opa.atac.ba)/length(nc12.opa.atac.merged)*1e+6, 4)
+
+score(nc12.ac.atac.ba) <- signif(score(nc12.ac.atac.ba)/length(nc12.ac.atac.merged)*1e+6, 4)
+
+score(nc12.dsred.atac.ba) <- signif(score(nc12.dsred.atac.ba)/length(nc12.dsred.atac.merged)*1e+6, 4)
+
+score(nc12.wt.atac.ba) <- signif(score(nc12.wt.atac.ba)/length(nc12.wt.atac.merged)*1e+6, 4)
+
+score(nc12.noKD.atac.ba) <- signif(score(nc12.noKD.atac.ba)/length(nc12.noKD.atac.merged)*1e+6, 4)
+
+score(nc12.intKD.atac.ba) <- signif(score(nc12.intKD.atac.ba)/length(nc12.intKD.atac.merged)*1e+6, 4)
+
+```
+
+Export
+```{r}
+export(object = nc12.opa.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC12/opa-nc12-atac-merged.bw", format = "bigWig")
+
+export(object = nc12.ac.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC12/ac-nc12-atac-merged.bw", format = "bigWig")
+
+export(object = nc12.dsred.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC12/dsred-nc12-atac-merged.bw", format = "bigWig")
+
+export(object = nc12.wt.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC12/wt-nc12-atac-merged.bw", format = "bigWig")
+
+export(object = nc12.noKD.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC12/noKD-nc12-atac-merged.bw", format = "bigWig")
+
+export(object = nc12.intKD.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC12/intKD-nc12-atac-merged.bw", format = "bigWig")
+```
+
+
+
+## opa NC13 RNA-seq Inv Samples
+
+Binned Average
+```{r}
+opakd.nc13.rna.ba <- lapply(opakd.nc13.rnaseq, function(x){
+  a = binnedAverage(bins = ca.10bp, numvar = coverage(x), varname = 'score')
+  })
+```
+
+CPM normalized score
+
+Get length (number of reads) for each sample 
+```{r}
+lens.opakd.nc13.rnaseq <- lengths(opakd.nc13.rnaseq)
+#lens.opakd.nc13.rnaseq
+```
+
+Divide the score by the number of reads then * 1M
+```{r}
+for(i in 1 : length(opakd.nc13.rna.ba)){score(opakd.nc13.rna.ba[[i]]) = signif(score(opakd.nc13.rna.ba[[i]])/lens.opakd.nc13.rnaseq[i]*1e+6, 4)}
+```
+
+Export path
+
+Make a vector of file paths for each sample 
+```{r}
+file.names <- gsub(pattern = "\\.", replacement = "-", names(opakd.nc13.rna.ba))
+                   
+export.path <- paste0("../Processed_Data/Wiggles/opa/RNA/NC13/",file.names,".bw")
+
+head(export.path)
+#export.path
+```
+
+```{r}
+for(i in 1:9){export(opakd.nc13.rna.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+```{r}
+for(i in 10:18){export(opakd.nc13.rna.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+## opa NC13 RNA-seq merged by genotype
+
+```{r}
+nc13.opa.samples.rna.names <- nc13.opakd.coldata.rna %>% filter(genotype == "opa") %>% select(row.name)
+#nc13.opa.samples.rna.names
+nc13.opa.rna.merged <- sort(unlist(opakd.nc13.rnaseq[names(opakd.nc13.rnaseq) %in% nc13.opa.samples.rna.names$row.name]))
+
+nc13.ac.samples.rna.names <- nc13.opakd.coldata.rna %>% filter(genotype == "ac") %>% select(row.name)
+#nc13.ac.samples.rna.names
+nc13.ac.rna.merged <- sort(unlist(opakd.nc13.rnaseq[names(opakd.nc13.rnaseq) %in% nc13.ac.samples.rna.names$row.name]))
+
+nc13.dsred.samples.rna.names <- nc13.opakd.coldata.rna %>% filter(genotype == "dsred") %>% select(row.name)
+#nc13.dsred.samples.rna.names
+nc13.dsred.rna.merged <- sort(unlist(opakd.nc13.rnaseq[names(opakd.nc13.rnaseq) %in% nc13.dsred.samples.rna.names$row.name]))
+
+nc13.wt.samples.rna.names <- nc13.opakd.coldata.rna %>% filter(genotype == "wt") %>% select(row.name)
+#nc13.wt.samples.rna.names
+nc13.wt.rna.merged <- sort(unlist(opakd.nc13.rnaseq[names(opakd.nc13.rnaseq) %in% nc13.wt.samples.rna.names$row.name]))
+
+nc13.noKD.samples.rna.names <- nc13.opakd.coldata.rna %>% filter(genotype == "noKD") %>% select(row.name)
+#nc13.noKD.samples.rna.names
+nc13.noKD.rna.merged <- sort(unlist(opakd.nc13.rnaseq[names(opakd.nc13.rnaseq) %in% nc13.noKD.samples.rna.names$row.name]))
+
+nc13.intKD.samples.rna.names <- nc13.opakd.coldata.rna %>% filter(genotype == "intKD") %>% select(row.name)
+#nc13.intKD.samples.rna.names
+nc13.intKD.rna.merged <- sort(unlist(opakd.nc13.rnaseq[names(opakd.nc13.rnaseq) %in% nc13.intKD.samples.rna.names$row.name]))
+
+```
+
+Binned Average
+```{r}
+nc13.opa.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.opa.rna.merged), varname = 'score')
+
+nc13.ac.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.ac.rna.merged), varname = 'score')
+
+nc13.dsred.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.dsred.rna.merged), varname = 'score')
+
+nc13.wt.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.wt.rna.merged), varname = 'score')
+
+nc13.noKD.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.noKD.rna.merged), varname = 'score')
+
+nc13.intKD.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.intKD.rna.merged), varname = 'score')
+
+```
+
+CPM Normalize 
+```{r}
+score(nc13.opa.rna.ba) <- signif(score(nc13.opa.rna.ba)/length(nc13.opa.rna.merged)*1e+6, 4)
+
+score(nc13.ac.rna.ba) <- signif(score(nc13.ac.rna.ba)/length(nc13.ac.rna.merged)*1e+6, 4)
+
+score(nc13.dsred.rna.ba) <- signif(score(nc13.dsred.rna.ba)/length(nc13.dsred.rna.merged)*1e+6, 4)
+
+score(nc13.wt.rna.ba) <- signif(score(nc13.wt.rna.ba)/length(nc13.wt.rna.merged)*1e+6, 4)
+
+score(nc13.noKD.rna.ba) <- signif(score(nc13.noKD.rna.ba)/length(nc13.noKD.rna.merged)*1e+6, 4)
+
+score(nc13.intKD.rna.ba) <- signif(score(nc13.intKD.rna.ba)/length(nc13.intKD.rna.merged)*1e+6, 4)
+
+```
+
+Export
+```{r}
+export(object = nc13.opa.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC13/opa-nc13-rna-merged.bw", format = "bigWig")
+
+export(object = nc13.ac.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC13/ac-nc13-rna-merged.bw", format = "bigWig")
+
+export(object = nc13.dsred.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC13/dsred-nc13-rna-merged.bw", format = "bigWig")
+
+export(object = nc13.wt.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC13/wt-nc13-rna-merged.bw", format = "bigWig")
+
+export(object = nc13.noKD.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC13/noKD-nc13-rna-merged.bw", format = "bigWig")
+
+export(object = nc13.intKD.rna.ba, con = "../Processed_Data/Wiggles/opa/RNA/NC13/intKD-nc13-rna-merged.bw", format = "bigWig")
+```
+
+## opa NC13 ATAC-seq Inv samples
+
+Binned Average
+```{r}
+opakd.nc13.atac.ba <- lapply(opakd.nc13.openreads, function(x){
+  a = binnedAverage(bins = ca.10bp, numvar = coverage(x), varname = 'score')
+  })
+```
+
+CPM normalized score
+
+Get length (number of reads) for each sample 
+```{r}
+lens.opakd.nc13.atac <- lengths(opakd.nc13.openreads)
+#lens.opakd.nc13.atac
+```
+
+Divide the score by the number of reads then * 1M
+```{r}
+for(i in 1 : length(opakd.nc13.atac.ba)){score(opakd.nc13.atac.ba[[i]]) = signif(score(opakd.nc13.atac.ba[[i]])/lens.opakd.nc13.atac[i]*1e+6, 4)}
+```
+
+Export path
+
+Make a vector of file paths for each sample 
+```{r}
+file.names <- gsub(pattern = "\\.", replacement = "-", names(opakd.nc13.atac.ba))
+                   
+export.path <- paste0("../Processed_Data/Wiggles/opa/ATAC/NC13/",file.names,".bw")
+
+head(export.path)
+#export.path
+```
+
+```{r}
+for(i in 1:9){export(opakd.nc13.atac.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+```{r}
+#for(i in 10:18){export(opakd.nc13.atac.ba[[i]], con = export.path[i], format = 'bigWig')}
+
+
+export(opakd.nc13.atac.ba[[10]], con = export.path[10], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[11]], con = export.path[11], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[12]], con = export.path[12], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[13]], con = export.path[13], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[14]], con = export.path[14], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[15]], con = export.path[15], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[16]], con = export.path[16], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[17]], con = export.path[17], format = 'bigWig')
+
+export(opakd.nc13.atac.ba[[18]], con = export.path[18], format = 'bigWig')
+
+
+```
+
+## opa NC13 ATAC-seq merged by genotype
+
+```{r}
+nc13.opa.samples.atac.names <- nc13.opakd.coldata.atac %>% filter(genotype == "opa") %>% select(row.name)
+#nc13.opa.samples.atac.names
+nc13.opa.atac.merged <- sort(unlist(opakd.nc13.openreads[names(opakd.nc13.openreads) %in% nc13.opa.samples.atac.names$row.name]))
+
+nc13.ac.samples.atac.names <- nc13.opakd.coldata.atac %>% filter(genotype == "ac") %>% select(row.name)
+#nc13.ac.samples.atac.names
+nc13.ac.atac.merged <- sort(unlist(opakd.nc13.openreads[names(opakd.nc13.openreads) %in% nc13.ac.samples.atac.names$row.name]))
+
+nc13.dsred.samples.atac.names <- nc13.opakd.coldata.atac %>% filter(genotype == "dsred") %>% select(row.name)
+#nc13.dsred.samples.atac.names
+nc13.dsred.atac.merged <- sort(unlist(opakd.nc13.openreads[names(opakd.nc13.openreads) %in% nc13.dsred.samples.atac.names$row.name]))
+
+nc13.wt.samples.atac.names <- nc13.opakd.coldata.atac %>% filter(genotype == "wt") %>% select(row.name)
+#nc13.wt.samples.atac.names
+nc13.wt.atac.merged <- sort(unlist(opakd.nc13.openreads[names(opakd.nc13.openreads) %in% nc13.wt.samples.atac.names$row.name]))
+
+nc13.noKD.samples.atac.names <- nc13.opakd.coldata.atac %>% filter(genotype == "noKD") %>% select(row.name)
+#nc13.noKD.samples.atac.names
+nc13.noKD.atac.merged <- sort(unlist(opakd.nc13.openreads[names(opakd.nc13.openreads) %in% nc13.noKD.samples.atac.names$row.name]))
+
+nc13.intKD.samples.atac.names <- nc13.opakd.coldata.atac %>% filter(genotype == "intKD") %>% select(row.name)
+#nc13.intKD.samples.atac.names
+nc13.intKD.atac.merged <- sort(unlist(opakd.nc13.openreads[names(opakd.nc13.openreads) %in% nc13.intKD.samples.atac.names$row.name]))
+
+```
+
+Binned Average
+```{r}
+nc13.opa.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.opa.atac.merged), varname = 'score')
+
+nc13.ac.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.ac.atac.merged), varname = 'score')
+
+nc13.dsred.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.dsred.atac.merged), varname = 'score')
+
+nc13.wt.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.wt.atac.merged), varname = 'score')
+
+nc13.noKD.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.noKD.atac.merged), varname = 'score')
+
+nc13.intKD.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.intKD.atac.merged), varname = 'score')
+
+```
+
+CPM Normalize 
+```{r}
+score(nc13.opa.atac.ba) <- signif(score(nc13.opa.atac.ba)/length(nc13.opa.atac.merged)*1e+6, 4)
+
+score(nc13.ac.atac.ba) <- signif(score(nc13.ac.atac.ba)/length(nc13.ac.atac.merged)*1e+6, 4)
+
+score(nc13.dsred.atac.ba) <- signif(score(nc13.dsred.atac.ba)/length(nc13.dsred.atac.merged)*1e+6, 4)
+
+score(nc13.wt.atac.ba) <- signif(score(nc13.wt.atac.ba)/length(nc13.wt.atac.merged)*1e+6, 4)
+
+score(nc13.noKD.atac.ba) <- signif(score(nc13.noKD.atac.ba)/length(nc13.noKD.atac.merged)*1e+6, 4)
+
+score(nc13.intKD.atac.ba) <- signif(score(nc13.intKD.atac.ba)/length(nc13.intKD.atac.merged)*1e+6, 4)
+
+```
+
+Export
+```{r}
+export(object = nc13.opa.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC13/opa-nc13-atac-merged.bw", format = "bigWig")
+
+export(object = nc13.ac.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC13/ac-nc13-atac-merged.bw", format = "bigWig")
+
+export(object = nc13.dsred.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC13/dsred-nc13-atac-merged.bw", format = "bigWig")
+
+export(object = nc13.wt.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC13/wt-nc13-atac-merged.bw", format = "bigWig")
+
+export(object = nc13.noKD.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC13/noKD-nc12-atac-merged.bw", format = "bigWig")
+
+export(object = nc13.intKD.atac.ba, con = "../Processed_Data/Wiggles/opa/ATAC/NC13/intKD-nc13-atac-merged.bw", format = "bigWig")
+```
+
+
+## zld RNA-seq Inv samples
+
+Binned Average
+```{r}
+zldkd.rna.ba <- lapply(zldkd.rnaseq, function(x){
+  a = binnedAverage(bins = ca.10bp, numvar = coverage(x), varname = 'score')
+  })
+```
+
+CPM normalized score
+
+Get length (number of reads) for each sample 
+```{r}
+lens.zldkd.rnaseq <- lengths(zldkd.rnaseq)
+
+#lens.zldkd.rnaseq
+
+```
+
+Divide the score by the number of reads then * 1M
+```{r}
+for(i in 1 : length(zldkd.rna.ba)){score(zldkd.rna.ba[[i]]) =signif(score(zldkd.rna.ba[[i]])/lens.zldkd.rnaseq[i]*1e+6, 4)}
+```
+
+
+Export path
+
+Make a vector of file paths for each sample 
+```{r}
+file.names <- gsub(pattern = "\\.", replacement = "-", names(zldkd.rna.ba))
+#file.names                   
+export.path <- paste0("../Processed_Data/Wiggles/zld/RNA/",file.names,".bw")
+
+#export.path
+```
+
+```{r}
+for(i in 1:9){export(zldkd.rna.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+```{r}
+for(i in 10:18){export(zldkd.rna.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+## zld RNA-seq merged by genotype
+
+```{r}
+zld.samples.rna.names <- zld.coldata.rna %>% filter(genotype == "zld") %>% select(row.name)
+#zld.samples.rna.names
+zld.rna.merged <- sort(unlist(zldkd.rnaseq[names(zldkd.rnaseq) %in% zld.samples.rna.names$row.name]))
+
+ac.samples.rna.names <- zld.coldata.rna %>% filter(genotype == "ac") %>% select(row.name)
+#ac.samples.rna.names
+ac.rna.merged <- sort(unlist(zldkd.rnaseq[names(zldkd.rnaseq) %in% ac.samples.rna.names$row.name]))
+
+wt.samples.rna.names <- zld.coldata.rna %>% filter(genotype == "wt") %>% select(row.name)
+#wt.samples.rna.names
+wt.rna.merged <- sort(unlist(zldkd.rnaseq[names(zldkd.rnaseq) %in% wt.samples.rna.names$row.name]))
+
+noKD.samples.rna.names <- zld.coldata.rna %>% filter(genotype == "noKD") %>% select(row.name)
+#noKD.samples.rna.names
+noKD.rna.merged <- sort(unlist(zldkd.rnaseq[names(zldkd.rnaseq) %in% noKD.samples.rna.names$row.name]))
+
+intKD.samples.rna.names <- zld.coldata.rna %>% filter(genotype == "intKD") %>% select(row.name)
+#intKD.samples.rna.names
+intKD.rna.merged <- sort(unlist(zldkd.rnaseq[names(zldkd.rnaseq) %in% intKD.samples.rna.names$row.name]))
+
+```
+
+
+Binned Average
+```{r}
+zld.rna.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(zld.rna.merged), varname = 'score')
+
+ac.rna.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(ac.rna.merged), varname = 'score')
+
+wt.rna.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(wt.rna.merged), varname = 'score')
+
+noKD.rna.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(noKD.rna.merged), varname = 'score')
+
+intKD.rna.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(intKD.rna.merged), varname = 'score')
+```
+
+CPM Normalize 
+```{r}
+score(zld.rna.merged.ba) <- signif(score(zld.rna.merged.ba)/length(zld.rna.merged)*1e+6, 4)
+
+score(ac.rna.merged.ba) <- signif(score(ac.rna.merged.ba)/length(ac.rna.merged)*1e+6, 4)
+
+score(wt.rna.merged.ba) <- signif(score(wt.rna.merged.ba)/length(wt.rna.merged)*1e+6, 4)
+
+score(noKD.rna.merged.ba) <- signif(score(noKD.rna.merged.ba)/length(noKD.rna.merged)*1e+6, 4)
+
+score(intKD.rna.merged.ba) <- signif(score(intKD.rna.merged.ba)/length(intKD.rna.merged)*1e+6, 4)
+
+```
+
+Export
+```{r}
+export(object = zld.rna.merged.ba, con = "../Processed_Data/Wiggles/zld/RNA/zld-rna-merged.bw", format = "bigWig")
+
+export(object = ac.rna.merged.ba, con = "../Processed_Data/Wiggles/zld/RNA/ac-rna-merged.bw", format = "bigWig")
+
+
+export(object = wt.rna.merged.ba, con = "../Processed_Data/Wiggles/zld/RNA/wt-rna-merged.bw", format = "bigWig")
+
+export(object = noKD.rna.merged.ba, con = "../Processed_Data/Wiggles/zld/RNA/noKD-rna-merged.bw", format = "bigWig")
+
+export(object = intKD.rna.merged.ba, con = "../Processed_Data/Wiggles/zld/RNA/intKD-rna-merged.bw", format = "bigWig")
+```
+
+## zld ATAC-seq Inv samples
+
+Binned Average
+```{r}
+zldkd.atac.ba <- lapply(zldkd.openreads, function(x){
+  a = binnedAverage(bins = ca.10bp, numvar = coverage(x), varname = 'score')
+  })
+```
+
+CPM normalized score
+
+Get length (number of reads) for each sample 
+```{r}
+lens.zldkd.atac <- lengths(zldkd.openreads)
+#lens.zldkd.atac
+
+```
+
+Divide the score by the number of reads then * 1M
+```{r}
+for(i in 1 : length(zldkd.atac.ba)){score(zldkd.atac.ba[[i]]) =signif(score(zldkd.atac.ba[[i]])/lens.zldkd.atac[i]*1e+6, 4)}
+```
+
+
+Export path
+
+Make a vector of file paths for each sample 
+```{r}
+file.names <- gsub(pattern = "\\.", replacement = "-", names(zldkd.atac.ba))
+#file.names                   
+export.path <- paste0("../Processed_Data/Wiggles/zld/ATAC/",file.names,".bw")
+
+export.path
+```
+
+```{r}
+for(i in 1:9){export(zldkd.atac.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+```{r}
+for(i in 10:18){export(zldkd.atac.ba[[i]], con = export.path[i], format = 'bigWig')}
+```
+
+
+## zld ATAC-seq merged by genotype
+
+```{r}
+zld.samples.atac.names <- zld.coldata.atac %>% filter(genotype == "zld") %>% select(row.name)
+#zld.samples.atac.names
+zld.atac.merged <- sort(unlist(zldkd.openreads[names(zldkd.openreads) %in% zld.samples.atac.names$row.name]))
+
+ac.samples.atac.names <- zld.coldata.atac %>% filter(genotype == "ac") %>% select(row.name)
+#ac.samples.atac.names
+ac.atac.merged <- sort(unlist(zldkd.openreads[names(zldkd.openreads) %in% ac.samples.atac.names$row.name]))
+
+wt.samples.atac.names <- zld.coldata.atac %>% filter(genotype == "wt") %>% select(row.name)
+#wt.samples.atac.names
+wt.atac.merged <- sort(unlist(zldkd.openreads[names(zldkd.openreads) %in% wt.samples.atac.names$row.name]))
+
+noKD.samples.atac.names <- zld.coldata.atac %>% filter(genotype == "noKD") %>% select(row.name)
+#noKD.samples.atac.names
+noKD.atac.merged <- sort(unlist(zldkd.openreads[names(zldkd.openreads) %in% noKD.samples.atac.names$row.name]))
+
+intKD.samples.atac.names <- zld.coldata.atac %>% filter(genotype == "intKD") %>% select(row.name)
+#intKD.samples.atac.names
+intKD.atac.merged <- sort(unlist(zldkd.openreads[names(zldkd.openreads) %in% intKD.samples.atac.names$row.name]))
+
+```
+
+
+Binned Average
+```{r}
+zld.atac.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(zld.atac.merged), varname = 'score')
+
+ac.atac.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(ac.atac.merged), varname = 'score')
+
+wt.atac.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(wt.atac.merged), varname = 'score')
+
+noKD.atac.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(noKD.atac.merged), varname = 'score')
+
+intKD.atac.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(intKD.atac.merged), varname = 'score')
+```
+
+CPM Normalize 
+```{r}
+score(zld.atac.merged.ba) <- signif(score(zld.atac.merged.ba)/length(zld.atac.merged)*1e+6, 4)
+
+score(ac.atac.merged.ba) <- signif(score(ac.atac.merged.ba)/length(ac.atac.merged)*1e+6, 4)
+
+score(wt.atac.merged.ba) <- signif(score(wt.atac.merged.ba)/length(wt.atac.merged)*1e+6, 4)
+
+score(noKD.atac.merged.ba) <- signif(score(noKD.atac.merged.ba)/length(noKD.atac.merged)*1e+6, 4)
+
+score(intKD.atac.merged.ba) <- signif(score(intKD.atac.merged.ba)/length(intKD.atac.merged)*1e+6, 4)
+
+```
+
+Export
+```{r}
+export(object = zld.atac.merged.ba, con = "../Processed_Data/Wiggles/zld/ATAC/zld-atac-merged.bw", format = "bigWig")
+
+export(object = ac.atac.merged.ba, con = "../Processed_Data/Wiggles/zld/ATAC/ac-atac-merged.bw", format = "bigWig")
+
+
+export(object = wt.atac.merged.ba, con = "../Processed_Data/Wiggles/zld/ATAC/wt-atac-merged.bw", format = "bigWig")
+
+export(object = noKD.atac.merged.ba, con = "../Processed_Data/Wiggles/zld/ATAC/noKD-atac-merged.bw", format = "bigWig")
+
+export(object = intKD.atac.merged.ba, con = "../Processed_Data/Wiggles/zld/ATAC/intKD-atac-merged.bw", format = "bigWig")
+```
+
+
+
+## ATAC-seq timecourse
+
+all open reads
+```{r}
+all.openreads.merged <- sort(unlist(wt.tc.openreads))
+
+names(all.openreads.merged)  <- NULL
+```
+
+Sort by stage 
+```{r}
+nc11.openreads.merged <-
+  sort(unlist(wt.tc.openreads[grepl(names(wt.tc.openreads), pattern = "\\.NC11\\.")]))
+
+nc12.openreads.merged <- sort(unlist(wt.tc.openreads[grepl(names(wt.tc.openreads), pattern = "\\.NC12\\.")]))
+
+nc13.openreads.merged <- sort(unlist(wt.tc.openreads[grepl(names(wt.tc.openreads), pattern = "\\.NC13\\.")]))
+
+nc14.openreads.merged <- sort(unlist(wt.tc.openreads[grepl(names(wt.tc.openreads), pattern = "\\.NC14\\.")]))
+
+lnc14.openreads.merged <-
+  sort(unlist(wt.tc.openreads[grepl(names(wt.tc.openreads), pattern = "\\.LNC14\\.")]))
+```
+
+
+```{r}
+names(nc11.openreads.merged) <- NULL
+
+names(nc12.openreads.merged) <- NULL
+
+names(nc13.openreads.merged) <- NULL
+
+names(nc14.openreads.merged) <- NULL
+
+names(lnc14.openreads.merged) <- NULL
+
+```
+
+
+Bin Average all open reads 
+```{r}
+all.openreads.merged.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(all.openreads.merged), varname = 'score')
+```
+
+Bin average open reads merged by stage
+```{r}
+nc11.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc11.openreads.merged), varname = 'score')
+nc12.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.openreads.merged), varname = 'score')
+nc13.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.openreads.merged), varname = 'score')
+nc14.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc14.openreads.merged), varname = 'score')
+lnc14.atac.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(lnc14.openreads.merged), varname = 'score')
+```
+
+
+CPM normalize all open reads
+```{r}
+score(all.openreads.merged.ba) <- signif(score(all.openreads.merged.ba)/length(all.openreads.merged)*1e+6, 4)
+```
+
+CPM normalize merged by stage
+```{r}
+score(nc11.atac.ba) <- signif(score(nc11.atac.ba)/length(nc11.openreads.merged)*1e+6, 4)
+score(nc12.atac.ba) <- signif(score(nc12.atac.ba)/length(nc12.openreads.merged)*1e+6, 4)
+score(nc13.atac.ba) <- signif(score(nc13.atac.ba)/length(nc13.openreads.merged)*1e+6, 4)
+score(nc14.atac.ba) <- signif(score(nc14.atac.ba)/length(nc14.openreads.merged)*1e+6, 4)
+score(lnc14.atac.ba) <- signif(score(lnc14.atac.ba)/length(lnc14.openreads.merged)*1e+6, 4)
+```
+
+
+Export
+```{r}
+export(all.openreads.merged.ba, con = "../Processed_Data/Wiggles/ATAC/WT_TC/all-atac-merged.bw", format = 'bigWig')
+
+export(nc11.atac.ba, con = "../Processed_Data/Wiggles/ATAC/WT_TC/nc11-atac.bw", format = 'bigWig')
+
+export(nc12.atac.ba, con = "../Processed_Data/Wiggles/ATAC/WT_TC/nc12-atac.bw", format = 'bigWig')
+
+export(nc13.atac.ba, con = "../Processed_Data/Wiggles/ATAC/WT_TC/nc13-atac.bw", format = 'bigWig')
+
+export(nc14.atac.ba, con = "../Processed_Data/Wiggles/ATAC/WT_TC/nc14-atac.bw", format = 'bigWig')
+
+export(lnc14.atac.ba, con = "../Processed_Data/Wiggles/ATAC/WT_TC/lnc14-atac.bw", format = 'bigWig')
+
+```
+
+## RNA-seq timecourse
+
+Merged Samples by stage
+
+```{r}
+mtrnl.rna <- sort(unlist(wt.tc.rnaseq[1:4]))
+
+nc11.rna <- sort(unlist(wt.tc.rnaseq[5:8]))
+
+nc12.rna <- sort(unlist(wt.tc.rnaseq[9:12]))
+
+nc13.rna <- sort(unlist(wt.tc.rnaseq[13:16]))
+
+nc14.rna <- sort(unlist(wt.tc.rnaseq[17:20]))
+
+lnc14.rna <- sort(unlist(wt.tc.rnaseq[21:24]))
+```
+
+
+Bin averages
+```{r}
+
+mtrnl.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(mtrnl.rna), varname = 'score')
+
+nc11.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc11.rna), varname = 'score')
+
+nc12.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc12.rna), varname = 'score')
+
+nc13.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc13.rna), varname = 'score')
+
+nc14.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(nc14.rna), varname = 'score')
+
+lnc14.rna.ba <- binnedAverage(bins = ca.10bp, numvar = coverage(lnc14.rna), varname = 'score')
+
+```
+
+CPM Normalize
+```{r}
+score(mtrnl.rna.ba) <- signif(score(mtrnl.rna.ba)/length(mtrnl.rna)*1e+6, 4)
+
+score(nc11.rna.ba) <- signif(score(nc11.rna.ba)/length(nc11.rna)*1e+6, 4)
+
+score(nc12.rna.ba) <- signif(score(nc12.rna.ba)/length(nc12.rna)*1e+6, 4)
+
+score(nc13.rna.ba) <- signif(score(nc13.rna.ba)/length(nc13.rna)*1e+6, 4)
+
+score(nc14.rna.ba) <- signif(score(nc14.rna.ba)/length(nc14.rna)*1e+6, 4)
+
+score(lnc14.rna.ba) <- signif(score(lnc14.rna.ba)/length(lnc14.rna)*1e+6, 4)
+```
+
+
+Export 
+```{r}
+stages <- c("mtnrl","nc11","nc12","nc13","nc14","lnc14")
+export.path <- paste0("../Processed_Data/Wiggles/RNA/WT_TC/",stages,"-rna.bw")
+export.path
+```
+
+```{r}
+export(object = mtrnl.rna.ba, con = export.path[1], format = "bigWig")
+
+export(object = nc11.rna.ba, con = export.path[2], format = "bigWig")
+
+export(object = nc12.rna.ba, con = export.path[3], format = "bigWig")
+
+export(object = nc13.rna.ba, con = export.path[4], format = "bigWig")
+
+export(object = nc14.rna.ba, con = export.path[5], format = "bigWig")
+
+export(object = lnc14.rna.ba, con = export.path[6], format = "bigWig")
+
+```
